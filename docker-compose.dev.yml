@@ -1,11 +1,11 @@
 version: '3.9'
 
 services:
-  # Frontend application
+  # Frontend application - development mode
   web:
     build:
       context: ../slr-web-app
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     environment:
@@ -15,14 +15,16 @@ services:
       - VECTOR_DB_SERVICE_URL=http://vector-db:8001
       - QUARTO_SERVICE_URL=http://quarto-export:8002
       - N8N_BASE_URL=http://n8n:5678
+      - NODE_ENV=development
+    volumes:
+      - ../slr-web-app:/app
+      - /app/node_modules
     depends_on:
       - supabase
       - doc-ai
       - vector-db
       - quarto-export
       - n8n
-    volumes:
-      - web_data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
@@ -31,7 +33,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # Supabase
+  # Supabase - same as production
   supabase:
     image: supabase/supabase-local
     ports:
@@ -50,11 +52,11 @@ services:
       retries: 3
       start_period: 40s
 
-  # n8n workflow automation
+  # n8n workflow automation - development mode
   n8n:
     build:
       context: ../slr-n8n-flows
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "5678:5678"
     environment:
@@ -68,7 +70,10 @@ services:
       - QUARTO_SERVICE_URL=http://quarto-export:8002
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - NODE_ENV=development
     volumes:
+      - ../slr-n8n-flows:/app
+      - /app/node_modules
       - n8n_data:/home/node/.n8n
     restart: unless-stopped
     healthcheck:
@@ -78,18 +83,21 @@ services:
       retries: 3
       start_period: 40s
 
-  # Document AI Service
+  # Document AI Service - development mode
   doc-ai:
     build:
       context: ../slr-doc-ai
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "8000:8000"
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/secrets/google-credentials.json
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - NODE_ENV=development
     volumes:
+      - ../slr-doc-ai:/app
+      - /app/node_modules
       - doc_ai_data:/app/data
       - ./secrets:/secrets:ro
     restart: unless-stopped
@@ -100,11 +108,11 @@ services:
       retries: 3
       start_period: 40s
 
-  # Vector Database Service
+  # Vector Database Service - development mode
   vector-db:
     build:
       context: ../slr-vector-db
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "8001:8001"
     environment:
@@ -114,7 +122,10 @@ services:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NODE_ENV=development
     volumes:
+      - ../slr-vector-db:/app
+      - /app/node_modules
       - vector_db_data:/app/data
     restart: unless-stopped
     healthcheck:
@@ -124,17 +135,20 @@ services:
       retries: 3
       start_period: 40s
 
-  # Quarto Export Service
+  # Quarto Export Service - development mode
   quarto-export:
     build:
       context: ../slr-quarto
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "8002:8002"
     environment:
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - NODE_ENV=development
     volumes:
+      - ../slr-quarto:/app
+      - /app/node_modules
       - quarto_data:/app/data
     restart: unless-stopped
     healthcheck:
@@ -145,9 +159,8 @@ services:
       start_period: 40s
 
 volumes:
-  web_data:
   supabase_data:
   n8n_data:
   doc_ai_data:
   vector_db_data:
-  quarto_data:
+  quarto_data: 
