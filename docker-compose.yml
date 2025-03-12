@@ -1,0 +1,117 @@
+version: '3.9'
+
+services:
+  # Frontend application
+  web:
+    build:
+      context: ./submodules/slr-web-app
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - DOC_AI_SERVICE_URL=http://doc-ai:8000
+      - VECTOR_DB_SERVICE_URL=http://vector-db:8001
+      - QUARTO_SERVICE_URL=http://quarto-export:8002
+      - N8N_BASE_URL=http://n8n:5678
+    depends_on:
+      - supabase
+      - doc-ai
+      - vector-db
+      - quarto-export
+      - n8n
+    volumes:
+      - web_data:/app/data
+    restart: unless-stopped
+
+  # Supabase
+  supabase:
+    image: supabase/supabase-local
+    ports:
+      - "54321:54321"  # REST API
+      - "54322:54322"  # Dashboard
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - supabase_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # n8n workflow automation
+  n8n:
+    build:
+      context: ./submodules/slr-n8n-flows
+      dockerfile: Dockerfile
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - DOC_AI_SERVICE_URL=http://doc-ai:8000
+      - VECTOR_DB_SERVICE_URL=http://vector-db:8001
+      - QUARTO_SERVICE_URL=http://quarto-export:8002
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
+  # Document AI Service
+  doc-ai:
+    build:
+      context: ./submodules/slr-doc-ai
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/google-credentials.json
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    volumes:
+      - doc_ai_data:/app/data
+      - ./secrets:/secrets:ro
+    restart: unless-stopped
+
+  # Vector Database Service
+  vector-db:
+    build:
+      context: ./submodules/slr-vector-db
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - PINECONE_INDEX=${PINECONE_INDEX}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - vector_db_data:/app/data
+    restart: unless-stopped
+
+  # Quarto Export Service
+  quarto-export:
+    build:
+      context: ./submodules/slr-quarto-export
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+    volumes:
+      - quarto_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  web_data:
+  supabase_data:
+  n8n_data:
+  doc_ai_data:
+  vector_db_data:
+  quarto_data:
